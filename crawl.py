@@ -121,12 +121,14 @@ class AsyncCrawler:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.session.close()
+        await self.session.close() # type: ignore
     
     async def add_page_visit(self, normalized_url):
         
         async with self.lock:
             if self.should_stop:
+                return False
+            if normalized_url in self.page_data:
                 return False
             if len(self.page_data) >= self.max_pages:
                 self.should_stop = True
@@ -134,22 +136,22 @@ class AsyncCrawler:
                 for task in self.all_tasks:
                     task.cancel()
                 return False
-            if normalized_url in self.page_data:
-                return False
             else: 
                 return True
             
     async def get_html(self, url):
         try:
-            async with self.session.get(url, headers={"User-Agent": "BootCrawler/1.0"}) as response:
+            async with self.session.get(url) as response: # type: ignore
                 if response.status > 399:
-                    raise Exception(f"got HTTP error: {response.status}")
+                    print(f"Error: HTTP {response.status} for {url}")
                     return None
+                
                 content_type = response.headers.get("content-type", "")
                 if "text/html" not in content_type:
-                    raise Exception(f"got non-HTML response: {content_type}")
+                    print(f"Non-html content: {content_type}, for {url}")
                     return None
                 return await response.text()
+            
         except Exception as e:
             raise Exception(f"Error while fetching {url}: {e}")
             return None
@@ -170,10 +172,14 @@ class AsyncCrawler:
             html = await self.get_html(current_url)
             if html is None:
                 return
+            
             page_data = extract_page_data(html, current_url)
             async with self.lock:
                 self.page_data[normalized_url] = page_data
             next_urls = get_urls_from_html(html, self.base_url)
+
+        if self.should_stop:
+            return
         tasks = []
         for url in next_urls:
             crawl_task = asyncio.create_task(self.crawl_page(url))
