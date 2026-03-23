@@ -1,5 +1,3 @@
-from locale import normalize
-from tabnanny import check
 
 from bs4 import BeautifulSoup, Tag
 from urllib.parse import urlparse, urljoin
@@ -67,6 +65,7 @@ def extract_page_data(html, page_url):
     result["image_urls"] = get_images_from_html(html, page_url)
     return result
 
+# this is from earlier, before setup async; keeping for historical reasons
 def get_html(url):
     try:
         response = requests.get(url, headers={"User-Agent": "BootCrawler/1.0"})
@@ -79,7 +78,7 @@ def get_html(url):
         raise Exception(f"Content type is not text/html; it is {content_type}")
     return response.text
 
-
+# this is from earlier, before setup async; keeping for historical reasons
 def crawl_page(base_url, current_url=None, page_data=None):
     if current_url is None:
         current_url = base_url
